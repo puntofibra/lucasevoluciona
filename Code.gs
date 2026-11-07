@@ -53,6 +53,9 @@ function manejar_(p) {
       case 'restablecer': r = restablecer_(p); break;
       case 'partida':     r = partida_(p); break;
       case 'ranking':     r = ranking_(p); break;
+      case 'salaCrear':   r = salaCrear_(p); break;
+      case 'salaVer':     r = salaVer_(p); break;
+      case 'salaUnir':    r = salaUnir_(p); break;
       case 'admLlave':    r = adminLlave_(p); break;
       case 'admTotp':     r = adminTotp_(p); break;
       case 'adm':         r = admin_(p); break;
@@ -267,14 +270,19 @@ function restablecer_(p) {
 
 /* ═════════════════ PARTIDAS Y RANKING ═════════════════ */
 
-var P_CAB = ['Fecha', 'Día', 'Email', 'Jugador', 'Puntos', 'Nivel máx', 'Fusiones', 'Combo máx', 'Segundos', 'Id'];
-function partidasSh_() { return hoja_('Partidas', P_CAB); }
+var P_CAB = ['Fecha', 'Día', 'Email', 'Jugador', 'Puntos', 'Nivel máx', 'Fusiones', 'Combo máx', 'Segundos', 'Id', 'Modo', 'Pareja'];
+function partidasSh_() {
+  var sh = hoja_('Partidas', P_CAB);
+  if (sh.getLastColumn() < P_CAB.length) sh.getRange(1, 1, 1, P_CAB.length).setValues([P_CAB]).setFontWeight('bold').setBackground('#0b1328').setFontColor('#17ff5f');
+  return sh;
+}
 
 function partida_(p) {
   var u = sesion_(p.ses);
   var pts = Math.max(0, Math.round(Number(p.puntos) || 0)), niv = Math.max(0, Math.min(11, Math.round(Number(p.nivel) || 0)));
   var fus = Math.max(0, Math.round(Number(p.fusiones) || 0)), combo = Math.max(0, Math.round(Number(p.combo) || 0));
   var seg = Math.max(0, Math.round(Number(p.seg) || 0)), id = String(p.id || '').slice(0, 40);
+  var dobles = p.modo === 'dobles', pareja = String(p.pareja || '').replace(/[<>"]/g, '').slice(0, 40);
   if (pts > 5000000) err_('Puntuación no válida');
   if (pts > 0 && seg < 3) err_('Partida demasiado corta');
   freno_('par_' + u.email, 40, 600);
@@ -284,20 +292,20 @@ function partida_(p) {
     var hoy = hoy_(), ult = row[U.UltDia] instanceof Date ? hoy_(row[U.UltDia]) : String(row[U.UltDia] || '');
     var racha = Number(row[U.Racha] || 0);
     if (ult === hoy) { } else if (ult === ayer_()) racha++; else racha = 1;
-    var antes = Number(row[U.Mejor] || 0), record = pts > antes;
+    var antes = Number(row[U.Mejor] || 0), record = !dobles && pts > antes;
     row[U.Partidas] = Number(row[U.Partidas] || 0) + 1;
-    row[U.Mejor] = Math.max(antes, pts);
+    if (!dobles) row[U.Mejor] = Math.max(antes, pts);
     row[U.Nivel] = Math.max(Number(row[U.Nivel] || 0), niv);
     row[U.Racha] = racha; row[U.RachaMax] = Math.max(Number(row[U.RachaMax] || 0), racha);
     row[U.UltDia] = "'" + hoy;
     guardaFila_(f.sh, i, row);
     row[U.UltDia] = hoy;
-    partidasSh_().appendRow([new Date(), "'" + hoy, u.email, u.nombre, pts, niv, fus, combo, seg, id]);
+    partidasSh_().appendRow([new Date(), "'" + hoy, u.email, u.nombre, pts, niv, fus, combo, seg, id, dobles ? 'dobles' : 'solo', dobles ? pareja : '']);
     if (id) CacheService.getScriptCache().put('pid_' + id, '1', 21600);
     CacheService.getScriptCache().remove('rk_cache');
     var rk = rankings_();
-    var pos = rk.hoy.findIndex(function (x) { return x.n === u.nombre; }) + 1;
-    return { user: pubUser_(userObj_(row)), record: record, antes: antes, posHoy: pos, totalHoy: rk.hoyTotal, ranking: rk };
+    var pos = dobles ? rk.parejas.findIndex(function (x) { return x.n === pareja; }) + 1 : rk.hoy.findIndex(function (x) { return x.n === u.nombre; }) + 1;
+    return { user: pubUser_(userObj_(row)), record: record, antes: antes, posHoy: pos, totalHoy: dobles ? rk.parejas.length : rk.hoyTotal, ranking: rk };
   });
 }
 
@@ -306,10 +314,11 @@ function rankings_() {
   if (raw) { try { return JSON.parse(raw); } catch (e) { } }
   var hoy = hoy_(), lunes = lunes_();
   var sh = partidasSh_(), n = sh.getLastRow(), desde = Math.max(2, n - 6000);
-  var v = n > 1 ? sh.getRange(desde, 1, n - desde + 1, 6).getValues() : [];
-  var bH = {}, bS = {};
+  var v = n > 1 ? sh.getRange(desde, 1, n - desde + 1, 12).getValues() : [];
+  var bH = {}, bS = {}, bP = {};
   v.forEach(function (r) {
     var dia = r[1] instanceof Date ? hoy_(r[1]) : String(r[1]), nom = String(r[3]), pts = Number(r[4]) || 0, niv = Number(r[5]) || 0;
+    if (r[10] === 'dobles') { var pj = String(r[11] || nom); if (!bP[pj] || bP[pj].p < pts) bP[pj] = { n: pj, p: pts, l: niv }; return; }
     if (dia >= lunes && (!bS[nom] || bS[nom].p < pts)) bS[nom] = { n: nom, p: pts, l: niv };
     if (dia === hoy && (!bH[nom] || bH[nom].p < pts)) bH[nom] = { n: nom, p: pts, l: niv };
   });
@@ -319,11 +328,45 @@ function rankings_() {
   var tot = f.rows.filter(function (r) { return Number(r[U.Mejor]) > 0 && !r[U.Bloqueado]; })
     .map(function (r) { return { n: String(r[U.Nombre]), p: Number(r[U.Mejor]), l: Number(r[U.Nivel] || 0) }; })
     .sort(function (a, b) { return b.p - a.p; });
-  var out = { hoy: hoyL.slice(0, 50), semana: semL.slice(0, 50), total: tot.slice(0, 50), hoyTotal: hoyL.length, dia: hoy };
+  var out = { hoy: hoyL.slice(0, 50), semana: semL.slice(0, 50), total: tot.slice(0, 50), parejas: orden(bP).slice(0, 50), hoyTotal: hoyL.length, dia: hoy };
   try { c.put('rk_cache', JSON.stringify(out), 60); } catch (e) { }
   return out;
 }
 function ranking_(p) { return { ranking: rankings_() }; }
+
+/* ═════════════════ SALAS A DOBLES (solo emparejamiento; la partida va directa entre móviles) ═════════════════ */
+
+function salaCrear_(p) {
+  freno_('sala', 60, 600);
+  var sdp = String(p.sdp || ''); if (sdp.length < 50 || sdp.length > 60000) throw new Error('Datos de conexión no válidos');
+  var c = CacheService.getScriptCache(), abc = 'ABDEFGHJKLMNPQRSTUVWXYZ', code = '';
+  for (var t = 0; t < 20; t++) { code = ''; for (var i = 0; i < 4; i++) code += abc[Math.floor(Math.random() * abc.length)]; if (!c.get('sala_' + code)) break; }
+  c.put('sala_' + code, JSON.stringify({ o: sdp, hn: String(p.nombre || 'Jugador 1').replace(/[<>"]/g, '').slice(0, 16), a: '', gn: '' }), 900);
+  return { code: code };
+}
+function sala_(code) {
+  var raw = CacheService.getScriptCache().get('sala_' + String(code || '').toUpperCase().replace(/[^A-Z]/g, ''));
+  if (!raw) throw new Error('Esa sala no existe o ha caducado');
+  return JSON.parse(raw);
+}
+function salaVer_(p) {
+  var s = sala_(p.code);
+  if (p.rol === 'host') return { a: s.a, gn: s.gn };
+  if (s.a) throw new Error('Esa sala ya está completa');
+  return { o: s.o, hn: s.hn };
+}
+function salaUnir_(p) {
+  freno_('salaU', 60, 600);
+  var code = String(p.code || '').toUpperCase().replace(/[^A-Z]/g, ''), sdp = String(p.sdp || '');
+  if (sdp.length < 50 || sdp.length > 60000) throw new Error('Datos de conexión no válidos');
+  return lockU_(function () {
+    var s = sala_(code);
+    if (s.a) throw new Error('Esa sala ya está completa');
+    s.a = sdp; s.gn = String(p.nombre || 'Jugador 2').replace(/[<>"]/g, '').slice(0, 16);
+    CacheService.getScriptCache().put('sala_' + code, JSON.stringify(s), 900);
+    return {};
+  });
+}
 
 /* ═════════════════ PANEL ADMIN ═════════════════ */
 
