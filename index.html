@@ -203,6 +203,14 @@ h2.t{font-family:Orbitron;font-size:20px;letter-spacing:2px;margin:0;text-align:
 #evo .l2{font-size:30px;letter-spacing:2px;color:#fff;text-shadow:0 0 18px var(--lucas)}
 @keyframes evoA{0%{transform:scale(.2) rotate(-20deg);opacity:0}15%{transform:scale(1.2) rotate(4deg);opacity:1}25%{transform:scale(1)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.4) translateY(-40px)}}
 /* avisos con el estilo del juego */
+/* aviso de girar el dispositivo */
+#rot{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(23,255,95,.15),transparent 60%),#04050d;padding:20px;text-align:center}
+.rotBox{display:flex;flex-direction:column;align-items:center;gap:10px}
+.rotBox img{width:110px;filter:drop-shadow(0 0 14px rgba(23,255,95,.5))}
+.rotPh{width:46px;height:78px;border:4px solid var(--lucas);border-radius:10px;box-shadow:0 0 16px var(--lucas);animation:rotA 1.8s ease-in-out infinite}
+#rot.toLand .rotPh{animation:rotB 1.8s ease-in-out infinite}
+@keyframes rotA{0%,25%{transform:rotate(-90deg)}60%,100%{transform:rotate(0)}}
+@keyframes rotB{0%,25%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 #toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-160%) scale(.9);opacity:0;z-index:60;width:max-content;max-width:min(440px,92vw);
   display:flex;align-items:center;gap:12px;padding:10px 18px 10px 10px;border-radius:20px;color:#fff;font-size:16px;font-weight:600;line-height:1.25;
   background:linear-gradient(135deg,rgba(14,26,48,.97),rgba(6,12,26,.97)) padding-box,linear-gradient(135deg,#17ff5f,#22e4ff) border-box;border:2px solid transparent;
@@ -245,6 +253,7 @@ h2.t{font-family:Orbitron;font-size:20px;letter-spacing:2px;margin:0;text-align:
 </div>
 <div id="evo"></div>
 <div id="toast"></div>
+<div id="rot" class="hidden"><div class="rotBox"><img src="img/lucas_miedo.webp" alt=""><div class="rotPh"></div><h2 class="t" id="rotT">GIRA EL MÓVIL</h2><p class="ptxt" id="rotP">Este juego se juega en vertical</p></div></div>
 
 <script>
 /* ════════════════════════════════════════════════════════════
@@ -255,7 +264,7 @@ const CFG = {
   GOOGLE: '454055120059-nuhaop4r62urc3u036cc3grpqo71ulg7.apps.googleusercontent.com'
 };
 const BASE = 'https://puntofibra.github.io/lucasevoluciona/';
-const APP_V = '5';   // ¡tiene que coincidir SIEMPRE con version.json!
+const APP_V = '6';   // ¡tiene que coincidir SIEMPRE con version.json!
 let PUB = {}, IMGV = '1';
 
 /* ═════════════ UTIL ═════════════ */
@@ -1318,6 +1327,30 @@ const Admin = (()=>{
     $('#aCer').onclick = closeModal;
   }
   return { abrir };
+})();
+
+/* ═════════════ ORIENTACIÓN: móvil en vertical, tablet en horizontal ═════════════ */
+const Orient = (()=>{
+  const short = Math.min(screen.width, screen.height);
+  const touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  const tipo = !touch ? 'pc' : (short < 600 ? 'movil' : 'tablet');
+  function lock(){
+    if (tipo==='pc') return;
+    try{ screen.orientation && screen.orientation.lock && screen.orientation.lock(tipo==='movil' ? 'portrait-primary' : 'landscape').catch(()=>{}); }catch(e){}
+  }
+  function check(){
+    if (tipo==='pc') return;
+    const land = innerWidth > innerHeight, mal = (tipo==='movil' && land) || (tipo==='tablet' && !land);
+    const el = $('#rot'); el.classList.toggle('hidden', !mal); el.classList.toggle('toLand', tipo==='tablet');
+    $('#rotT').textContent = tipo==='movil' ? 'GIRA EL MÓVIL' : 'GIRA LA TABLET';
+    $('#rotP').textContent = tipo==='movil' ? 'LUCAS EVOLUCIONA se juega con el móvil en vertical' : 'En la tablet se juega en horizontal';
+    if (mal && G && !G.over && !G.paused && !$('#game').classList.contains('hidden')) pause(true);
+    if (!mal) setTimeout(resize, 120);
+  }
+  addEventListener('resize', check); addEventListener('orientationchange', ()=>setTimeout(check, 200));
+  document.addEventListener('pointerdown', lock, {once:true});
+  check(); lock();
+  return { tipo, check };
 })();
 
 /* ═════════════ AUTO-ACTUALIZACIÓN ═════════════ */
