@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>LUCAS EVOLUCIONA · FuturMovil</title>
+<title>FuturMovil presenta · LUCAS EVOLUCIONA</title>
 <meta name="description" content="Fusiona piezas iguales y haz evolucionar a Lucas: de chispa a robot gigante. ¿Hasta dónde llegarás?">
 <meta name="theme-color" content="#04050d">
 <meta name="mobile-web-app-capable" content="yes">
@@ -64,6 +64,7 @@ img{-webkit-user-drag:none}
 .menu{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;padding:22px;align-items:stretch}
 .logoBox{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
 .logoBox .fm{width:min(240px,62%);filter:drop-shadow(0 0 10px rgba(23,255,95,.55))}
+.pres{font-family:Orbitron;font-weight:700;font-size:12px;letter-spacing:8px;color:#cfe8ff;opacity:.85;margin:-2px 0 2px;padding-left:8px}
 .title{font-family:Orbitron;font-weight:900;font-size:clamp(28px,8vw,40px);line-height:1;letter-spacing:2px;text-align:center;
   background:linear-gradient(180deg,#fff 10%,#9dffbf 45%,#17ff5f 60%,#0fbf6a);-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 0 12px rgba(23,255,95,.6))}
@@ -195,9 +196,17 @@ h2.t{font-family:Orbitron;font-size:20px;letter-spacing:2px;margin:0;text-align:
 #evo .l1{font-size:14px;letter-spacing:4px;color:var(--gold);text-shadow:0 0 10px var(--gold)}
 #evo .l2{font-size:30px;letter-spacing:2px;color:#fff;text-shadow:0 0 18px var(--lucas)}
 @keyframes evoA{0%{transform:scale(.2) rotate(-20deg);opacity:0}15%{transform:scale(1.2) rotate(4deg);opacity:1}25%{transform:scale(1)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.4) translateY(-40px)}}
-#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,220%);opacity:0;z-index:50;max-width:92vw;background:rgba(10,16,34,.95);border:1px solid var(--lucas);color:#fff;padding:12px 18px;border-radius:14px;font-size:16px;box-shadow:0 0 22px rgba(23,255,95,.35);transition:transform .3s,opacity .3s;text-align:center}
-#toast.on{transform:translate(-50%,0);opacity:1}
-#toast.err{border-color:var(--red);box-shadow:0 0 22px rgba(255,59,92,.4)}
+/* avisos con el estilo del juego */
+#toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-160%) scale(.9);opacity:0;z-index:60;width:max-content;max-width:min(440px,92vw);
+  display:flex;align-items:center;gap:12px;padding:10px 18px 10px 10px;border-radius:20px;color:#fff;font-size:16px;font-weight:600;line-height:1.25;
+  background:linear-gradient(135deg,rgba(14,26,48,.97),rgba(6,12,26,.97)) padding-box,linear-gradient(135deg,#17ff5f,#22e4ff) border-box;border:2px solid transparent;
+  box-shadow:0 0 24px rgba(23,255,95,.35),0 12px 30px rgba(0,0,0,.5);transition:transform .35s cubic-bezier(.2,1.4,.4,1),opacity .25s;pointer-events:none}
+#toast.on{transform:translate(-50%,0) scale(1);opacity:1}
+#toast img{width:46px;height:46px;flex:none;filter:drop-shadow(0 0 8px rgba(23,255,95,.6))}
+#toast b{display:block;font-family:Orbitron;font-size:11px;letter-spacing:3px;color:var(--lucas);margin-bottom:2px}
+#toast.err{background:linear-gradient(135deg,rgba(40,10,20,.97),rgba(16,6,12,.97)) padding-box,linear-gradient(135deg,#ff3b5c,#ff9a3d) border-box;box-shadow:0 0 24px rgba(255,59,92,.4),0 12px 30px rgba(0,0,0,.5)}
+#toast.err b{color:#ff6b84}
+#toast.err img{filter:drop-shadow(0 0 8px rgba(255,59,92,.6))}
 .spinner{width:46px;height:46px;border-radius:50%;border:4px solid rgba(23,255,95,.2);border-top-color:var(--lucas);animation:spin 1s linear infinite;margin:12px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .nfcAnim{width:90px;height:90px;margin:0 auto;color:var(--lucas);position:relative}
@@ -240,7 +249,7 @@ const CFG = {
   GOOGLE: '454055120059-nuhaop4r62urc3u036cc3grpqo71ulg7.apps.googleusercontent.com'
 };
 const BASE = 'https://puntofibra.github.io/lucasevoluciona/';
-const APP_V = '2';   // ¡tiene que coincidir SIEMPRE con version.json!
+const APP_V = '4';   // ¡tiene que coincidir SIEMPRE con version.json!
 let PUB = {}, IMGV = '1';
 
 /* ═════════════ UTIL ═════════════ */
@@ -249,7 +258,13 @@ const app = $('#app');
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = n => Math.round(n).toLocaleString('es-ES');
 let toastT;
-function toast(m, err){ const t=$('#toast'); t.textContent=m; t.className=(err?'err ':'')+'on'; clearTimeout(toastT); toastT=setTimeout(()=>t.className='',3000); }
+function toast(m, err){
+  const t=$('#toast');
+  t.innerHTML = `<img src="img/lucas_${err?'miedo':'celebra'}.webp" alt=""><div><b>${err?'¡UPS!':'LUCAS'}</b>${esc(m)}</div>`;
+  t.className=''; void t.offsetWidth; t.className=(err?'err ':'')+'on';
+  if (err) vib(30);
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className=(err?'err':''), Math.min(6000, 2600 + m.length*35));
+}
 function api(accion, d, ms){
   const ctl = window.AbortController ? new AbortController() : null;
   const tm = setTimeout(()=>{ try{ ctl && ctl.abort(); }catch(e){} }, ms || 25000);
@@ -306,6 +321,15 @@ function measure(im){
     if (x1>x0){ im._cx=(x0+x1+1)/2/S; im._cy=(y0+y1+1)/2/S; im._d=Math.max(x1-x0+1,y1-y0+1)/S; im._custom=1; }
   }catch(e){ im._custom=1; im._cx=im._cy=.5; im._d=1; }
 }
+/* reduce la imagen en pasos de la mitad para que quede nítida al hacerla pequeña */
+function stepDown(im, W){
+  let src = im, w = im.naturalWidth || im.width;
+  while (w/2 >= W*1.4){
+    w = Math.round(w/2); const c = document.createElement('canvas'); c.width = c.height = w;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, w, w); src = c;
+  }
+  return src;
+}
 /* poses de Lucas */
 const LUCAS = {}; ['sujeta','suelta','celebra','miedo'].forEach(k=>{ const i=new Image(); i.src='img/lucas_'+k+'.webp'; LUCAS[k]=i; });
 
@@ -318,7 +342,7 @@ function drawPiece(ctx, lv, R){
   if (custom){
     ctx.shadowColor = l.c; ctx.shadowBlur = R*.35;
     const W = 2*R/im._d;   // tamaño de la imagen completa para que el contenido mida 2R
-    ctx.drawImage(im, -W*im._cx, -W*im._cy, W, W);
+    ctx.drawImage(stepDown(im, W), -W*im._cx, -W*im._cy, W, W);
     ctx.restore(); return;
   }
   ctx.shadowColor = l.c; ctx.shadowBlur = R*.45;
@@ -351,14 +375,14 @@ function sprite(lv, pxR){
   let c = spriteCache.get(k);
   if (!c){
     c = document.createElement('canvas'); const S = Math.ceil(pxR*2.8);
-    c.width = c.height = S; const x = c.getContext('2d'); x.translate(S/2,S/2); drawPiece(x, lv, pxR);
+    c.width = c.height = S; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.translate(S/2,S/2); drawPiece(x, lv, pxR);
     spriteCache.set(k, c);
   }
   return c;
 }
 function iconURL(lv, size=64){
   const k = lv+'_'+size; if (iconCache.has(k)) return iconCache.get(k);
-  const c = document.createElement('canvas'); c.width=c.height=size*2; const x=c.getContext('2d'); x.translate(size,size); drawPiece(x, lv, size*.72);
+  const c = document.createElement('canvas'); c.width=c.height=size*2; const x=c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.translate(size,size); drawPiece(x, lv, size*.72);
   const u = c.toDataURL(); iconCache.set(k,u); return u;
 }
 function refreshIcons(){ document.querySelectorAll('img[data-lv]').forEach(i=>i.src=iconURL(+i.dataset.lv)); if(G) drawNext(); }
@@ -512,7 +536,7 @@ function misHTML(){
 }
 
 /* ═════════════ MENÚ ═════════════ */
-function logoHTML(){ return `<div class="logoBox" id="logoBox"><img class="fm" src="img/logo.webp" alt="FuturMovil"><div class="title">LUCAS<small>EVOLUCIONA</small></div></div>`; }
+function logoHTML(){ return `<div class="logoBox" id="logoBox"><img class="fm" src="img/logo.webp" alt="FuturMovil"><div class="pres">PRESENTA</div><div class="title">LUCAS<small>EVOLUCIONA</small></div></div>`; }
 function chainHTML(){ const m=evoMax(); return `<div class="chain">${LV.map((l,i)=>`<img data-lv="${i}" src="${iconURL(i)}" class="${i>m?'no':''}" title="${i>m?'???':l.n}">`).join('')}</div>`; }
 function racha(){ return USER ? (USER.user.racha||0) : LS.get('rachaL',{n:0}).n; }
 
@@ -770,7 +794,7 @@ function resize(){
   /* el marco sobresale del tablero: ~33% más ancho y ~30% más alto */
   let w = Math.min(aw/1.34, (ah/1.31)*BW/BH); w = Math.max(160, w);
   const h = w*BH/BW;
-  DPR = Math.min(2.5, window.devicePixelRatio||1);
+  DPR = Math.min(3, window.devicePixelRatio||1);
   SC = w/BW;
   cv.style.width = w+'px'; cv.style.height = h+'px';
   cv.width = Math.round(w*DPR); cv.height = Math.round(h*DPR);
@@ -788,7 +812,7 @@ function updHud(){
 }
 function drawNext(){
   if (!G) return; nx.clearRect(0,0,144,144);
-  const R = 46; nx.drawImage(sprite(G.next, R), 72-R*1.4, 72-R*1.4);
+  const R = 46; nx.imageSmoothingQuality = 'high'; const sp = sprite(G.next, R); nx.drawImage(sp, Math.round(72-sp.width/2), Math.round(72-sp.width/2));
 }
 function updPw(){
   document.querySelectorAll('.pwb').forEach(b=>{
@@ -1049,7 +1073,7 @@ function fxStep(dt){
 
 /* ── dibujo ── */
 function render(){
-  const c = cx; c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,cv.width,cv.height);
+  const c = cx; c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,cv.width,cv.height); c.imageSmoothingQuality = 'high';
   const k = SC*DPR;
   let sx=0, sy=0; if (G.shake){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
   c.setTransform(k,0,0,k,sx*k,sy*k);
