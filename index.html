@@ -118,10 +118,14 @@ img{-webkit-user-drag:none}
 .hScore span{font-size:13px;color:var(--gold)}
 .hNext{align-items:center;padding:4px 8px}
 .hNext canvas{width:52px;height:52px}
-.hCombo{position:absolute;left:50%;top:18%;transform:translateX(-50%);pointer-events:none;font-family:Orbitron;font-weight:900;text-align:center;z-index:5}
+.hCombo{position:absolute;left:50%;top:26%;transform:translateX(-50%);pointer-events:none;font-family:Orbitron;font-weight:900;text-align:center;z-index:5}
 .hBtn{width:46px;height:46px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:20px;display:flex;align-items:center;justify-content:center}
 .boardWrap{grid-area:board;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;touch-action:none}
 #cv{display:block;touch-action:none;border-radius:20px}
+#marco{position:absolute;pointer-events:none;z-index:2;max-width:none;transition:filter .3s}
+#marco.fever{filter:drop-shadow(0 0 14px #ffd23f) drop-shadow(0 0 4px #ffd23f)}
+#marco.danger{animation:mDanger .45s infinite}
+@keyframes mDanger{50%{filter:drop-shadow(0 0 16px #ff3b5c) drop-shadow(0 0 6px #ff3b5c)}}
 .ladder{grid-area:ladder;display:flex;justify-content:center;gap:3px;padding:2px 0}
 .ladder .st{position:relative;display:flex;flex-direction:column;align-items:center}
 .ladder img{width:26px;height:26px;transition:transform .3s}
@@ -216,7 +220,7 @@ h2.t{font-family:Orbitron;font-size:20px;letter-spacing:2px;margin:0;text-align:
     <div class="hBtns"><button class="hBtn" id="bPause" title="Pausa">⏸</button></div>
     <div class="sideInfo" id="sideInfo"></div>
   </div>
-  <div class="boardWrap" id="bw"><canvas id="cv"></canvas><div class="hCombo" id="hCombo"></div></div>
+  <div class="boardWrap" id="bw"><canvas id="cv"></canvas><img id="marco" src="img/marco.webp" alt=""><div class="hCombo" id="hCombo"></div></div>
   <div class="ladder" id="ladder"></div>
   <div class="pw" id="pw">
     <button class="pwb" data-p="laser"><span class="e">🎯</span><span>LÁSER</span><em>0</em></button>
@@ -236,7 +240,7 @@ const CFG = {
   GOOGLE: '454055120059-nuhaop4r62urc3u036cc3grpqo71ulg7.apps.googleusercontent.com'
 };
 const BASE = 'https://puntofibra.github.io/lucasevoluciona/';
-const APP_V = '1';   // ¡tiene que coincidir SIEMPRE con version.json!
+const APP_V = '2';   // ¡tiene que coincidir SIEMPRE con version.json!
 let PUB = {}, IMGV = '1';
 
 /* ═════════════ UTIL ═════════════ */
@@ -288,24 +292,33 @@ const PIMG = [];
 function loadPieceImages(){
   LV.forEach((l,i)=>{
     const im = new Image();
-    im.onload = ()=>{ PIMG[i]=im; spriteCache.clear(); iconCache.clear(); refreshIcons(); };
+    im.onload = ()=>{ if(!im._fb) measure(im); PIMG[i]=im; spriteCache.clear(); iconCache.clear(); refreshIcons(); };
     im.onerror = ()=>{ if(l.img && !im._fb){ im._fb=1; im.src=l.img; } };
-    im.src = 'img/p'+(i+1)+'.png?v='+IMGV;
-    if (l.img) im._custom = 1;
+    im.src = 'img/p'+(i+1)+'.webp?v='+IMGV;
   });
 }
-const LUCAS_IMG = new Image(); LUCAS_IMG.src = 'img/saluda.webp';
+/* mide el contenido visible (sin el margen transparente) para que la burbuja encaje justo en su círculo */
+function measure(im){
+  try{
+    const S=128, c=document.createElement('canvas'); c.width=c.height=S; const x=c.getContext('2d'); x.drawImage(im,0,0,S,S);
+    const d=x.getImageData(0,0,S,S).data; let x0=S,y0=S,x1=0,y1=0;
+    for(let y=0;y<S;y++) for(let xx=0;xx<S;xx++) if(d[(y*S+xx)*4+3]>40){ if(xx<x0)x0=xx; if(xx>x1)x1=xx; if(y<y0)y0=y; if(y>y1)y1=y; }
+    if (x1>x0){ im._cx=(x0+x1+1)/2/S; im._cy=(y0+y1+1)/2/S; im._d=Math.max(x1-x0+1,y1-y0+1)/S; im._custom=1; }
+  }catch(e){ im._custom=1; im._cx=im._cy=.5; im._d=1; }
+}
+/* poses de Lucas */
+const LUCAS = {}; ['sujeta','suelta','celebra','miedo'].forEach(k=>{ const i=new Image(); i.src='img/lucas_'+k+'.webp'; LUCAS[k]=i; });
 
 /* sprite de una pieza (con caché) */
 const spriteCache = new Map(), iconCache = new Map();
 function drawPiece(ctx, lv, R){
   const l = LV[lv], im = PIMG[lv];
-  const custom = im && /\/p\d+\.png/.test(im.src);
+  const custom = im && im._custom;
   ctx.save();
   if (custom){
     ctx.shadowColor = l.c; ctx.shadowBlur = R*.35;
-    const s = Math.min(2*R/im.width, 2*R/im.height);
-    ctx.drawImage(im, -im.width*s/2, -im.height*s/2, im.width*s, im.height*s);
+    const W = 2*R/im._d;   // tamaño de la imagen completa para que el contenido mida 2R
+    ctx.drawImage(im, -W*im._cx, -W*im._cy, W, W);
     ctx.restore(); return;
   }
   ctx.shadowColor = l.c; ctx.shadowBlur = R*.45;
@@ -509,7 +522,7 @@ function showMenu(){
   const nombre = USER ? USER.user.nombre : 'Invitado';
   app.innerHTML = `<div class="screen"><div class="menu glass">
     ${logoHTML()}
-    <div class="hero"><img src="img/saluda.webp" alt="Lucas"></div>
+    <div class="hero"><img src="img/lucas_celebra.webp" alt="Lucas"></div>
     ${chainHTML()}
     ${PUB.banner?`<div class="banner">📢 ${esc(PUB.banner)}</div>`:''}
     ${PUB.mant?`<div class="banner">🔧 ${esc(PUB.mantMsg)}</div>`:''}
@@ -560,6 +573,7 @@ function howTo(){
     <p>💥 Cuando dos piezas <b>iguales</b> se tocan, se <b>fusionan</b> en la siguiente evolución.</p>
     <p>🧬 La cadena: ${LV.map((l,i)=>`<img data-lv="${i}" src="${iconURL(i)}" style="width:22px;vertical-align:middle">`).join('')}<br>¡La última es <b>LUCAS</b>! Dos Lucas juntos = <b>SUPERNOVA</b>.</p>
     <p>🔥 Fusiones seguidas = <b>COMBO</b>. Con combo x5 entras en <b>FIEBRE 5G</b>: puntos dobles.</p>
+    <p>⏱️ Tienes unos segundos para cada tirada: si se acaba el tiempo, Lucas suelta la bola solo. ¡Cuantos más puntos, menos tiempo! Si arrastras fuera del tablero y sueltas, no se lanza.</p>
     <p>🎯 <b>Láser</b> elimina una pieza · 🌀 <b>Sacudir</b> mueve todo · 🔄 <b>Cambiar</b> intercambia con la siguiente. Ganas poderes cada 2.500 puntos.</p>
     <p>🚨 Si las piezas pasan la <b style="color:var(--red)">línea roja</b> durante 3 segundos… ¡se acabó!</p>
     <p>🏆 Juega cada día para mantener tu <b>racha</b> y sube en el ranking.</p></div>
@@ -700,7 +714,13 @@ if ('serviceWorker' in navigator) window.addEventListener('load', ()=>navigator.
 /* ════════════════════════════════════════════════════════════
    MOTOR DEL JUEGO
    ════════════════════════════════════════════════════════════ */
-const BW = 400, BH = 620, LINE_Y = 132, TOP_Y = 58, GRAV = 1500;
+const BW = 400, BH = 680, LINE_Y = 165, GRAV = 1500;
+/* Lucas arriba sujetando la bola: su tamaño, la altura de sus manos y dónde cuelga la bola */
+const LUC_H = 104, LUC_TOP = 2, HAND_Y = LUC_TOP + LUC_H*.80;
+const holdY = r => HAND_Y + r*.55;
+const FONDO = new Image(); FONDO.src = 'img/fondo.webp';
+/* hueco interior del marco (en píxeles de img/marco.webp, 848x1264) */
+const MARCO = {w:848, h:1264, x:150.5, y:170, hw:547, hh:932.5};
 const cv = $('#cv'), cx = cv.getContext('2d'), nx = $('#hNx').getContext('2d');
 let G = null, SC = 1, DPR = 1, rafId = 0, lastT = 0;
 
@@ -714,7 +734,7 @@ function newGame(saved){
     bodies:[], parts:[], texts:[], rings:[], score:0, combo:0, lastMerge:-9, comboMax:0, merges:0, maxLv:0,
     made:Array(11).fill(0), cur:rndPiece(), next:rndPiece(), aimX:BW/2, aiming:false, dropCd:0, dangerT:0, dangerBeep:0,
     over:false, paused:false, shake:0, flash:0, t:0, fever:0, mode:null, pw:{laser:pwBase,sacudir:pwBase,cambio:pwBase},
-    nextPw:2500, id: Date.now().toString(36)+Math.random().toString(36).slice(2,8), uid:1, lucasX:BW/2, saveT:0, sent:false
+    nextPw:2500, id: Date.now().toString(36)+Math.random().toString(36).slice(2,8), uid:1, lucasX:BW/2, saveT:0, sent:false, holdT:0, lastSec:9, pose:'sujeta', poseT:0
   };
   if (saved){
     Object.assign(G, {score:saved.score, comboMax:saved.comboMax, merges:saved.merges, maxLv:saved.maxLv, made:saved.made, cur:saved.cur, next:saved.next, pw:saved.pw, nextPw:saved.nextPw, id:saved.id, t:saved.t});
@@ -747,12 +767,16 @@ function hideGame(){ $('#game').classList.add('hidden'); cancelAnimationFrame(ra
 function resize(){
   const bw = $('#bw'); if (!bw || $('#game').classList.contains('hidden')) return;
   const aw = bw.clientWidth, ah = bw.clientHeight;
-  let w = Math.min(aw, ah*BW/BH); w = Math.max(200, w);
+  /* el marco sobresale del tablero: ~33% más ancho y ~30% más alto */
+  let w = Math.min(aw/1.34, (ah/1.31)*BW/BH); w = Math.max(160, w);
   const h = w*BH/BW;
   DPR = Math.min(2.5, window.devicePixelRatio||1);
   SC = w/BW;
   cv.style.width = w+'px'; cv.style.height = h+'px';
   cv.width = Math.round(w*DPR); cv.height = Math.round(h*DPR);
+  const s = w/MARCO.hw, m = $('#marco');
+  if (m){ m.style.width = MARCO.w*s+'px'; m.style.height = MARCO.h*s+'px';
+    m.style.left = (cv.offsetLeft - MARCO.x*s)+'px'; m.style.top = (cv.offsetTop - MARCO.y*s)+'px'; }
   spriteCache.clear();
 }
 addEventListener('resize', ()=>{ resize(); });
@@ -786,7 +810,12 @@ bwEl.addEventListener('pointerdown', e=>{
   G.aiming = true; G.aimX = p.x; try{ bwEl.setPointerCapture(e.pointerId); }catch(_){}
 });
 bwEl.addEventListener('pointermove', e=>{ if(!G || G.over) return; if (G.aiming || e.pointerType==='mouse') G.aimX = toLocal(e).x; });
-bwEl.addEventListener('pointerup', e=>{ if(!G || !G.aiming) return; G.aiming=false; G.aimX = toLocal(e).x; drop(); });
+bwEl.addEventListener('pointerup', e=>{
+  if(!G || !G.aiming) return; G.aiming=false;
+  const r = cv.getBoundingClientRect(), m = 24;
+  if (e.clientX < r.left-m || e.clientX > r.right+m || e.clientY < r.top-m*3 || e.clientY > r.bottom+m) return;  // soltado fuera: no se lanza
+  G.aimX = toLocal(e).x; drop();
+});
 bwEl.addEventListener('pointercancel', ()=>{ if(G) G.aiming=false; });
 const KEYS = {};
 addEventListener('keydown', e=>{
@@ -802,9 +831,10 @@ $('#bPause').onclick = ()=>{ SFX.click(); pause(); };
 
 function drop(){
   if (!G || G.over || G.paused || G.dropCd>0 || G.mode) return;
-  const r = LV[G.cur].r, x = Math.max(r+2, Math.min(BW-r-2, G.aimX));
-  const b = mkBody(G.cur, x, TOP_Y + 26 + r, 0, 260); b.r = r; G.bodies.push(b);
-  G.cur = G.next; G.next = rndPiece(); G.dropCd = .42;
+  const r = LV[G.cur].r; G.lucasX = G.aimX = Math.max(r+2, Math.min(BW-r-2, G.aimX));
+  const b = mkBody(G.cur, G.lucasX, holdY(r), 0, 260); b.r = r; G.bodies.push(b);
+  G.cur = G.next; G.next = rndPiece(); G.dropCd = .42; G.holdT = 0; G.lastSec = 9;
+  setPose('suelta', .4);
   SFX.drop(); vib(8); drawNext();
 }
 
@@ -895,13 +925,14 @@ function merge(a, b){
     pts = Math.round(5000*mult);
     burst(x,y,'#17ff5f',160,2.2); burst(x,y,'#ffffff',80,1.6); burst(x,y,'#22e4ff',80,2);
     G.rings.push({x,y,r:10,max:520,life:1.2,t:0,c:'#17ff5f'}); G.shake=30; G.flash=1;
-    floatText(x, y-40, '¡SUPERNOVA LUCAS!', '#17ff5f', 34); SFX.lucas(); vib([80,60,80,60,200]);
+    floatText(x, y-40, '¡SUPERNOVA LUCAS!', '#17ff5f', 34); setPose('celebra', 2.5); SFX.lucas(); vib([80,60,80,60,200]);
   } else {
     const nl = lv+1, nb = mkBody(nl, x, y, (a.vx+b.vx)/2, Math.min(a.vy,b.vy)/2 - 60);
     nb.r = Math.max(a.r, b.r); G.bodies.push(nb);
     G.made[nl]++; pts = Math.round(PTS[nl]*mult);
     if (nl > G.maxLv){ G.maxLv = nl; buildLadderSoon(); }
-    if (nl > evoMax()){ LS.set('evo', nl); showEvo(nl); SFX.evolve(); G.flash = .6; buildLadderSoon(); burstConfetti(); }
+    if (nl >= 7 || G.combo >= 4) setPose('celebra', 1.4);
+    if (nl > evoMax()){ setPose('celebra', 1.8); LS.set('evo', nl); showEvo(nl); SFX.evolve(); G.flash = .6; buildLadderSoon(); burstConfetti(); }
     const c = LV[nl].c;
     burst(x, y, c, 14+nl*5, .8+nl*.12); burst(x, y, '#ffffff', 6+nl*2, .6);
     G.rings.push({x,y,r:nb.r*.6,max:LV[nl].r*1.9,life:.45,t:0,c});
@@ -974,6 +1005,13 @@ function loop(now){
       if (KEYS.ArrowLeft) G.aimX -= 330*dt; if (KEYS.ArrowRight) G.aimX += 330*dt;
       const r = LV[G.cur].r; G.aimX = Math.max(r+2, Math.min(BW-r-2, G.aimX));
       physics(dt);
+      /* tiempo por tirada: 8 s al empezar, baja con los puntos hasta 4 s */
+      if (G.dropCd<=0 && !G.mode){
+        G.holdT += dt; const left = holdLimit() - G.holdT, sec = Math.ceil(left);
+        if (left <= 3 && sec !== G.lastSec && sec > 0){ G.lastSec = sec; tone(sec===1?990:660, .09, 'square', .07); }
+        if (left <= 0){ G.aiming = false; drop(); }
+      }
+      if (G.poseT > 0) G.poseT -= dt;
       if (G.fever>0){ G.fever -= dt; if (G.fever<=0) $('#game').classList.remove('fever'); }
       checkDanger(dt);
       G.saveT += dt; if (G.saveT > 3){ G.saveT=0; saveGame(); }
@@ -983,6 +1021,9 @@ function loop(now){
   render();
   if (shownScore !== G.score){ shownScore += Math.max(1, Math.ceil((G.score-shownScore)*.25)); if (shownScore>G.score) shownScore=G.score; $('#hSc').textContent = fmt(shownScore); updHud(); }
 }
+function holdLimit(){ return Math.max(4, 8 - G.score/5000); }
+function setPose(p, t){ if (!G) return; G.pose = p; G.poseT = t; }
+function curPose(){ if (G.dangerT > 0) return 'miedo'; return G.poseT > 0 ? G.pose : 'sujeta'; }
 function checkDanger(dt){
   let top = 1e9;
   for (const b of G.bodies) if (b.age > 1.3 && Math.abs(b.vy) < 400) top = Math.min(top, b.y - b.r);
@@ -1003,7 +1044,7 @@ function fxStep(dt){
   G.shake *= Math.pow(.02, dt); if (G.shake<.3) G.shake=0;
   G.flash = Math.max(0, G.flash - dt*2.2);
   if (G.beam){ G.beam.t -= dt; if (G.beam.t<=0) G.beam=null; }
-  G.lucasX += (G.aimX - G.lucasX)*Math.min(1, dt*14);
+  G.lucasX += (G.aimX - G.lucasX)*Math.min(1, dt*22);
 }
 
 /* ── dibujo ── */
@@ -1013,13 +1054,10 @@ function render(){
   let sx=0, sy=0; if (G.shake){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
   c.setTransform(k,0,0,k,sx*k,sy*k);
   /* fondo del tablero */
-  const bg = c.createLinearGradient(0,0,0,BH);
-  bg.addColorStop(0, G.fever>0?'rgba(60,40,10,.92)':'rgba(8,14,32,.92)'); bg.addColorStop(1, G.fever>0?'rgba(40,10,40,.95)':'rgba(4,22,24,.95)');
-  c.fillStyle = bg; roundRect(c,0,0,BW,BH,18); c.fill();
-  c.save(); roundRect(c,0,0,BW,BH,18); c.clip();
-  c.strokeStyle='rgba(34,228,255,.06)'; c.lineWidth=1;
-  for (let x=20;x<BW;x+=40){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,BH); c.stroke(); }
-  for (let y=20;y<BH;y+=40){ c.beginPath(); c.moveTo(0,y); c.lineTo(BW,y); c.stroke(); }
+  c.save(); roundRect(c,0,0,BW,BH,30); c.clip();
+  c.fillStyle = '#050a16'; c.fillRect(0,0,BW,BH);
+  if (FONDO.complete && FONDO.naturalWidth){ const s=Math.max(BW/FONDO.naturalWidth, BH/FONDO.naturalHeight), fw=FONDO.naturalWidth*s, fh=FONDO.naturalHeight*s; c.drawImage(FONDO,(BW-fw)/2,(BH-fh)/2,fw,fh); }
+  if (G.fever>0){ c.fillStyle=`rgba(255,180,40,${.10+.06*Math.sin(performance.now()/120)})`; c.fillRect(0,0,BW,BH); }
   /* línea de peligro */
   const dz = G.dangerT>0, pulse = .5+.5*Math.sin(performance.now()/(dz?70:300));
   c.setLineDash([10,8]); c.lineWidth = dz?3:2;
@@ -1030,26 +1068,38 @@ function render(){
     c.shadowColor='#ff3b5c'; c.shadowBlur=20; c.fillText(Math.ceil(3-G.dangerT), BW/2, LINE_Y+60); c.shadowBlur=0; }
   /* guía y pieza actual */
   if (!G.over){
-    const r = LV[G.cur].r, ax = G.aimX, py = TOP_Y + 26 + r;
+    const r = LV[G.cur].r, ax = G.lucasX, now = performance.now(), bob = Math.sin(now/300)*2.5, py = holdY(r) + bob;
     let gy = BH;
     for (const b of G.bodies){ const dx=Math.abs(b.x-ax); if (dx < b.r+r && b.y>py){ const yy = b.y - Math.sqrt(Math.max(0,(b.r+r)**2-dx*dx)); if (yy<gy) gy=yy; } }
     c.strokeStyle = LV[G.cur].c; c.globalAlpha=.45; c.lineWidth=2; c.setLineDash([3,9]);
     c.beginPath(); c.moveTo(ax, py+r); c.lineTo(ax, gy+r); c.stroke(); c.setLineDash([]); c.globalAlpha=1;
     c.strokeStyle=LV[G.cur].c; c.globalAlpha=.3; c.beginPath(); c.arc(ax, gy, r, 0, 6.283); c.stroke(); c.globalAlpha=1;
-    /* Lucas con su rayo tractor */
-    const lx = G.lucasX, lh = 50, bob = Math.sin(performance.now()/300)*3;
-    const gr = c.createLinearGradient(0, TOP_Y-6, 0, py);
-    gr.addColorStop(0,'rgba(23,255,95,.5)'); gr.addColorStop(1,'rgba(23,255,95,0)');
-    c.fillStyle = gr; c.beginPath(); c.moveTo(lx-8, TOP_Y-8+bob); c.lineTo(lx+8, TOP_Y-8+bob); c.lineTo(ax+r*.9, py); c.lineTo(ax-r*.9, py); c.closePath(); c.fill();
-    if (LUCAS_IMG.complete && LUCAS_IMG.naturalWidth){ const w = lh*LUCAS_IMG.naturalWidth/LUCAS_IMG.naturalHeight; c.drawImage(LUCAS_IMG, lx-w/2, TOP_Y-lh-4+bob, w, lh); }
+    const pose = curPose(), LI = LUCAS[pose], ly = LUC_TOP + bob + (pose==='miedo' ? Math.sin(now/25)*1.2 : 0);
+    /* fuego de los propulsores (por código) */
+    c.save(); c.globalCompositeOperation='lighter';
+    for (let j=-1;j<=1;j++){ const fx = ax + j*LUC_H*.085, fy = ly + LUC_H*.86, fl = LUC_H*(.13 + .05*Math.random());
+      const g = c.createLinearGradient(0, fy, 0, fy+fl); g.addColorStop(0,'rgba(220,255,230,.95)'); g.addColorStop(.35,'rgba(23,255,95,.8)'); g.addColorStop(1,'rgba(23,255,95,0)');
+      c.fillStyle = g; c.beginPath(); c.moveTo(fx-LUC_H*.035, fy); c.quadraticCurveTo(fx, fy+fl*1.2, fx+LUC_H*.035, fy); c.fill(); }
+    c.restore();
+    /* la bola que sujeta */
     const ready = G.dropCd<=0;
-    c.globalAlpha = ready?1:.5;
-    const sp = sprite(G.cur, r*k); const S = sp.width/k;
-    c.drawImage(sp, ax-S/2, py-S/2+Math.sin(performance.now()/250)*1.5, S, S);
-    c.globalAlpha = 1;
+    if (ready){ const sp = sprite(G.cur, r*k); const S = sp.width/k; c.drawImage(sp, ax-S/2, py-S/2, S, S); }
+    /* Lucas encima, con las manos sobre la bola */
+    if (LI && LI.complete && LI.naturalWidth) c.drawImage(LI, ax-LUC_H/2, ly, LUC_H, LUC_H);
+    /* cuenta atrás de la tirada (últimos 3 s) */
+    const left = holdLimit() - G.holdT;
+    if (ready && left <= 3 && !G.mode){
+      const f = Math.max(0, left/3), col = left<=1 ? '#ff3b5c' : '#ffd23f';
+      c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.arc(ax, py, r+7, 0, 6.283); c.stroke();
+      c.strokeStyle = col; c.shadowColor = col; c.shadowBlur = 12;
+      c.beginPath(); c.arc(ax, py, r+7, -Math.PI/2, -Math.PI/2 + 6.283*f); c.stroke(); c.shadowBlur = 0;
+      c.font = `900 ${Math.max(16, r*.9)}px Orbitron`; c.textAlign='center'; c.textBaseline='middle';
+      c.lineWidth = 4; c.strokeStyle='rgba(0,0,0,.7)'; c.strokeText(Math.ceil(left), ax, py); c.fillStyle = '#fff'; c.fillText(Math.ceil(left), ax, py);
+    }
   }
   /* piezas */
   for (const b of G.bodies){
+    if (b.lv === MAXL) drawAura(c, b.x, b.y, b.r);
     const sp = sprite(b.lv, LV[b.lv].r*k), S = sp.width/k * (b.r/LV[b.lv].r);
     c.save(); c.translate(b.x,b.y); c.rotate(b.ang);
     if (G.over && b.flash) c.globalAlpha = .5+.5*Math.sin(performance.now()/60);
@@ -1058,7 +1108,7 @@ function render(){
   /* láser */
   if (G.mode==='laser'){ c.fillStyle='rgba(255,59,92,.08)'; c.fillRect(0,0,BW,BH); }
   if (G.beam){ c.strokeStyle=`rgba(255,59,92,${G.beam.t*2.5})`; c.lineWidth=6; c.shadowColor='#ff3b5c'; c.shadowBlur=20;
-    c.beginPath(); c.moveTo(G.lucasX, TOP_Y-20); c.lineTo(G.beam.x, G.beam.y); c.stroke(); c.shadowBlur=0; }
+    c.beginPath(); c.moveTo(G.lucasX, LUC_TOP + LUC_H*.45); c.lineTo(G.beam.x, G.beam.y); c.stroke(); c.shadowBlur=0; }
   /* efectos */
   c.globalCompositeOperation='lighter';
   for (const r of G.rings){ const p=r.t/r.life; c.strokeStyle=r.c; c.globalAlpha=1-p; c.lineWidth=6*(1-p)+1; c.beginPath(); c.arc(r.x,r.y,r.r+(r.max-r.r)*easeOut(p),0,6.283); c.stroke(); }
@@ -1070,11 +1120,32 @@ function render(){
   c.globalAlpha=1;
   if (G.flash>0){ c.fillStyle=`rgba(255,255,255,${G.flash*.5})`; c.fillRect(0,0,BW,BH); }
   c.restore();
-  /* borde neón */
-  c.lineWidth=3; c.strokeStyle = G.fever>0 ? '#ffd23f' : 'rgba(34,228,255,.65)'; c.shadowColor = G.fever>0?'#ffd23f':'#22e4ff'; c.shadowBlur=16;
-  roundRect(c,1.5,1.5,BW-3,BH-3,17); c.stroke(); c.shadowBlur=0;
+  const mc = $('#marco'); if (mc){ mc.classList.toggle('fever', G.fever>0); mc.classList.toggle('danger', G.dangerT>0); }
 }
 const easeOut = p=>1-Math.pow(1-p,3);
+/* aura dorada con destellos alrededor de la bola de Lucas */
+function drawAura(c, x, y, r){
+  const t = performance.now()/1000, pul = .5+.5*Math.sin(t*3);
+  c.save(); c.globalCompositeOperation = 'lighter';
+  const g = c.createRadialGradient(x, y, r*.85, x, y, r*1.45);
+  g.addColorStop(0, `rgba(255,215,60,${.55+.25*pul})`); g.addColorStop(.45, `rgba(255,190,40,${.25+.15*pul})`); g.addColorStop(1, 'rgba(255,170,0,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, r*1.45, 0, 6.283); c.fill();
+  /* rayos girando */
+  c.translate(x, y); c.rotate(t*.6);
+  for (let i=0;i<12;i++){ c.rotate(6.283/12); const l = r*(1.25 + .12*Math.sin(t*4+i*1.7));
+    const gg = c.createLinearGradient(0, r*.95, 0, l); gg.addColorStop(0,'rgba(255,230,120,.6)'); gg.addColorStop(1,'rgba(255,200,40,0)');
+    c.fillStyle = gg; c.beginPath(); c.moveTo(-r*.05, r*.95); c.lineTo(0, l); c.lineTo(r*.05, r*.95); c.fill(); }
+  c.setTransform(c.getTransform()); c.restore();
+  /* destellos (estrellas de 4 puntas) */
+  c.save(); c.globalCompositeOperation = 'lighter';
+  for (let i=0;i<9;i++){
+    const ph = (t*.7 + i*.37) % 1, a = i*2.39 + t*.35, d = r*(1.02 + .32*ph), sx = x + Math.cos(a)*d, sy = y + Math.sin(a)*d;
+    const s = r*.16*Math.sin(ph*Math.PI), al = Math.sin(ph*Math.PI);
+    c.fillStyle = `rgba(255,245,180,${al})`; c.shadowColor = '#ffd23f'; c.shadowBlur = 10;
+    c.beginPath(); c.moveTo(sx, sy-s); c.quadraticCurveTo(sx, sy, sx+s, sy); c.quadraticCurveTo(sx, sy, sx, sy+s); c.quadraticCurveTo(sx, sy, sx-s, sy); c.quadraticCurveTo(sx, sy, sx, sy-s); c.fill();
+  }
+  c.restore();
+}
 
 /* ── fin de partida ── */
 function gameOver(){
@@ -1100,7 +1171,7 @@ async function showEnd(){
   /* racha local (invitados) */
   const rl = LS.get('rachaL',{n:0,d:''}), hoy=hoyLocal(), ay=new Date(Date.now()-864e5), ayer=ay.getFullYear()+'-'+String(ay.getMonth()+1).padStart(2,'0')+'-'+String(ay.getDate()).padStart(2,'0');
   if (rl.d!==hoy){ rl.n = rl.d===ayer ? rl.n+1 : 1; rl.d = hoy; LS.set('rachaL', rl); }
-  modal(`<img class="goLucas" src="img/caido.webp" alt="">
+  modal(`<img class="goLucas" src="img/lucas_miedo.webp" alt="">
     <h2 class="t">FIN DE LA PARTIDA</h2>
     <div class="goScore" id="goSc">0</div>
     ${rec?'<div class="goRec">🏆 ¡NUEVO RÉCORD! 🏆</div>':`<div class="ptxt">Tu récord: <b style="color:var(--gold)">${fmt(prevBest)}</b></div>`}
