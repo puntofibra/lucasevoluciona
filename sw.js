@@ -1,5 +1,5 @@
 /* LUCAS EVOLUCIONA · service worker: página siempre fresca, imágenes en caché */
-const C = 'lucasevo-v7';
+const C = 'lucasevo-v8';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'manifest.json', 'icon192.png', 'img/logo.webp', 'img/marco.webp', 'img/fondo.webp', 'img/lucas_sujeta.webp', 'js/qrcode.min.js']).catch(() => {}))); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

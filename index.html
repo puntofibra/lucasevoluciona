@@ -12,14 +12,20 @@
 <meta name="apple-mobile-web-app-title" content="Lucas Evo">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://puntofibra.github.io/lucasevoluciona/">
-<meta property="og:title" content="LUCAS EVOLUCIONA · ¿Hasta dónde llegarás?">
+<meta property="og:title" content="FuturMovil presenta LUCAS EVOLUCIONA 🤖⚡">
 <meta property="og:description" content="Fusiona piezas iguales: chispa, SIM, móvil, router, satélite… ¡hasta crear a Lucas gigante! Ranking diario.">
-<meta property="og:image" content="https://puntofibra.github.io/lucasevoluciona/og.jpg">
+<meta property="og:site_name" content="FuturMovil">
+<meta property="og:locale" content="es_ES">
+<meta property="og:image" content="https://puntofibra.github.io/lucasevoluciona/og.jpg?v=2">
+<meta property="og:image:secure_url" content="https://puntofibra.github.io/lucasevoluciona/og.jpg?v=2">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:alt" content="LUCAS EVOLUCIONA, el juego de FuturMovil">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://puntofibra.github.io/lucasevoluciona/og.jpg?v=2">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="icon192.png?v=2">
+<link rel="icon" type="image/png" href="favicon.png?v=3">
 <link rel="apple-touch-icon" href="appletouch.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -265,7 +271,7 @@ const CFG = {
   GOOGLE: '454055120059-nuhaop4r62urc3u036cc3grpqo71ulg7.apps.googleusercontent.com'
 };
 const BASE = 'https://puntofibra.github.io/lucasevoluciona/';
-const APP_V = '7';   // ¡tiene que coincidir SIEMPRE con version.json!
+const APP_V = '8';   // ¡tiene que coincidir SIEMPRE con version.json!
 let PUB = {}, IMGV = '1';
 
 /* ═════════════ UTIL ═════════════ */
@@ -596,17 +602,20 @@ function showMenu(){
   $('#bSnd').onclick = ()=>{ setSound(!AU.on); SFX.click(); showMenu(); };
   $('#bMus').onclick = ()=>{ ac(); setMusic(!LS.get('mus',true)); showMenu(); };
   $('#bInst').onclick = instalar;
-  $('#bShare').onclick = ()=>share('🤖⚡ ¿Hasta dónde puedes hacer evolucionar a Lucas? Juega gratis:');
+  $('#bShare').onclick = ()=>share('🤖⚡ ¿Hasta dónde puedes hacer evolucionar a Lucas? ¡Juega gratis!');
   if ($('#bOut')) $('#bOut').onclick = ()=>{ logout(); showLogin(); };
   if ($('#bIn')) $('#bIn').onclick = ()=>showLogin();
   document.addEventListener('pointerdown', firstTouch, {once:true});
 }
 function firstTouch(){ ac(); musSync(); }
 
-function share(text){
-  const url = BASE;
-  if (navigator.share) navigator.share({title:'LUCAS EVOLUCIONA', text, url}).catch(()=>{});
-  else window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank');
+/* compartir: solo texto con el enlace dentro (sin adjuntar imagen), así WhatsApp crea la tarjeta
+   con la imagen og:image y al pulsar la imagen o el enlace se abre el juego, también en los estados */
+function share(text, url){
+  url = url || BASE;
+  const msg = text + '\n👉 ' + url;
+  if (navigator.share) navigator.share({text: msg}).catch(()=>{});
+  else window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
 function howTo(){
@@ -712,7 +721,7 @@ function showLogin(vista){
   app.querySelectorAll('.segm button').forEach(b=>b.onclick=()=>showLogin(b.dataset.v));
   $('#bGuest').onclick = ()=>{ LS.set('guest', true); showMenu(); };
   $('#bInst').onclick = instalar;
-  $('#bShare').onclick = ()=>share('🤖⚡ ¿Hasta dónde puedes hacer evolucionar a Lucas? Juega gratis:');
+  $('#bShare').onclick = ()=>share('🤖⚡ ¿Hasta dónde puedes hacer evolucionar a Lucas? ¡Juega gratis!');
   if (vista==='entrar'){
     const go = async()=>{ const b=$('#bEntrar'); b.disabled=true;
       try{ done(await call('entrar',{email:$('#lEmail').value, pass:$('#lPass').value})); }catch(e){ toast(errMsg(e),1); b.disabled=false; } };
@@ -1434,7 +1443,7 @@ const Net = (()=>{
         <div class="ptxt" id="nSt"><div class="spinner" style="width:24px;height:24px;margin:0 auto 6px"></div>Esperando a tu compañero…</div>
         <div class="row"><button class="btn" id="nSh">📤 Enviar enlace</button><button class="btn ghost" id="nCan">Cancelar</button></div>`, ()=>close());
       drawQR($('#nQr'), url, 210);
-      $('#nSh').onclick = ()=>{ if (navigator.share) navigator.share({title:'LUCAS EVOLUCIONA', text:'🤖🤖 ¡Juega conmigo a dobles en LUCAS EVOLUCIONA! Código '+code, url}).catch(()=>{}); else window.open('https://wa.me/?text='+encodeURIComponent('🤖🤖 ¡Juega conmigo a dobles en LUCAS EVOLUCIONA! '+url),'_blank'); };
+      $('#nSh').onclick = ()=>share('🤖🤖 ¡Juega conmigo a dobles en LUCAS EVOLUCIONA! Código de sala: '+code, url);
       $('#nCan').onclick = ()=>{ close(); closeModal(); };
       let busy = false;
       pollT = setInterval(async ()=>{
